@@ -1,0 +1,29 @@
+{
+  "name": "gemini-image-gen-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Gemini image generation",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/mcp-server.js",
+    "web": "node src/web-server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "gemini",
+    "mcp",
+    "image-generation",
+    "claude"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^0.2.0",
+    "@modelcontextprotocol/sdk": "^1.11.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "node-fetch": "^3.3.2"
+  }
+}

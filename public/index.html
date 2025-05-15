@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Image Generation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 1.5rem;
+            padding-bottom: 1.5rem;
+            background-color: #f8f9fa;
+        }
+        .header {
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e5e5e5;
+            margin-bottom: 2rem;
+        }
+        .image-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 300px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        .image-container img {
+            max-width: 100%;
+            max-height: 500px;
+        }
+        .prompt-text {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-left: 3px solid #6c757d;
+            border-radius: 4px;
+        }
+        .card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+        }
+        .loading-spinner {
+            display: none;
+            margin: 0 auto;
+        }
+        .gallery-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .gallery-image:hover {
+            transform: scale(1.05);
+        }
+        .nav-tabs {
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header d-flex justify-content-between align-items-center">
+            <h1>Gemini Image Generation</h1>
+            <p class="text-muted">MCP Server Demo Interface</p>
+        </div>
+
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="generator-tab" data-bs-toggle="tab" data-bs-target="#generator" type="button" role="tab" aria-controls="generator" aria-selected="true">Generator</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="gallery-tab" data-bs-toggle="tab" data-bs-target="#gallery" type="button" role="tab" aria-controls="gallery" aria-selected="false">Gallery</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="about-tab" data-bs-toggle="tab" data-bs-target="#about" type="button" role="tab" aria-controls="about" aria-selected="false">About</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="myTabContent">
+            <!-- Generator Tab -->
+            <div class="tab-pane fade show active" id="generator" role="tabpanel" aria-labelledby="generator-tab">
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Image Generation Settings</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="imageForm">
+                                    <div class="mb-3">
+                                        <label for="prompt" class="form-label">Prompt</label>
+                                        <textarea class="form-control" id="prompt" rows="3" required placeholder="Describe the image you want to generate..."></textarea>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="model" class="form-label">Model</label>
+                                        <select class="form-select" id="model">
+                                            <option value="gemini-2.0-flash-preview-image-generation" selected>gemini-2.0-flash-preview-image-generation</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="temperature" class="form-label">Temperature: <span id="temperatureValue">1.0</span></label>
+                                        <input type="range" class="form-range" id="temperature" min="0" max="1" step="0.05" value="1.0">
+                                        <div class="form-text">Controls randomness (0 = deterministic, 1 = maximum creativity)</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="topP" class="form-label">Top P: <span id="topPValue">0.95</span></label>
+                                        <input type="range" class="form-range" id="topP" min="0" max="1" step="0.05" value="0.95">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="topK" class="form-label">Top K: <span id="topKValue">40</span></label>
+                                        <input type="range" class="form-range" id="topK" min="5" max="100" step="5" value="40">
+                                    </div>
+                                    
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" id="save" checked>
+                                        <label class="form-check-label" for="save">Save generated image</label>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary w-100">Generate Image</button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="card mt-3">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0">Sample Prompts</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="list-group">
+                                    <button type="button" class="list-group-item list-group-item-action sample-prompt">A serene lake surrounded by autumn trees, with mountains in the background</button>
+                                    <button type="button" class="list-group-item list-group-item-action sample-prompt">A futuristic city with flying cars and tall skyscrapers</button>
+                                    <button type="button" class="list-group-item list-group-item-action sample-prompt">A cute robot playing with a kitten in a garden</button>
+                                    <button type="button" class="list-group-item list-group-item-action sample-prompt">An underwater scene with colorful coral reef and tropical fish</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-7">
+                        <div class="card">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0">Generated Image</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="text-center mb-3">
+                                    <div class="spinner-border loading-spinner" role="status" id="loadingSpinner">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="image-container" id="imageContainer">
+                                    <p class="text-muted">Your generated image will appear here</p>
+                                </div>
+                                
+                                <div id="resultDetails" style="display: none;">
+                                    <h5>Original Prompt:</h5>
+                                    <div class="prompt-text" id="originalPrompt"></div>
+                                    
+                                    <h5 class="mt-3">Enhanced Prompt:</h5>
+                                    <div class="prompt-text" id="enhancedPrompt"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Gallery Tab -->
+            <div class="tab-pane fade" id="gallery" role="tabpanel" aria-labelledby="gallery-tab">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Generated Images Gallery</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="galleryContainer">
+                            <p class="text-center">Loading gallery...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- About Tab -->
+            <div class="tab-pane fade" id="about" role="tabpanel" aria-labelledby="about-tab">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">About Gemini Image Generation MCP</h5>
+                    </div>
+                    <div class="card-body">
+                        <h4>What is this?</h4>
+                        <p>This is a web interface for the Gemini Image Generation MCP (Model Calling Protocol) server. It allows you to generate images using Google's Gemini AI model.</p>
+                        
+                        <h4>How does it work?</h4>
+                        <p>The server uses the Gemini API to process your text prompt and generate an image. The MCP protocol allows Claude and other LLMs to delegate image generation tasks to specialized models like Gemini.</p>
+                        
+                        <h4>Generation Parameters</h4>
+                        <ul>
+                            <li><strong>Temperature:</strong> Controls randomness. Higher values (e.g., 1.0) make output more random, while lower values (e.g., 0.2) make it more deterministic.</li>
+                            <li><strong>Top P:</strong> Nucleus sampling parameter that controls diversity by limiting tokens to the most likely subset.</li>
+                            <li><strong>Top K:</strong> Limits token selection to the K most likely next tokens.</li>
+                        </ul>
+                        
+                        <h4>Using with Claude</h4>
+                        <p>To use this MCP server with Claude, you'll need to register it in the Claude Developer Settings or include it in your API requests.</p>
+                        <p>For more information, check the documentation in the <code>docs/</code> directory.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="mt-5 text-center text-muted">
+            <p>Gemini Image Generation MCP Server &copy; 2025</p>
+        </footer>
+    </div>
+
+    <!-- Modal for larger image view -->
+    <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="imageModalLabel">Generated Image</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalImage" src="" alt="Generated image" style="max-width: 100%;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM elements
+            const imageForm = document.getElementById('imageForm');
+            const promptInput = document.getElementById('prompt');
+            const modelSelect = document.getElementById('model');
+            const temperatureInput = document.getElementById('temperature');
+            const temperatureValue = document.getElementById('temperatureValue');
+            const topPInput = document.getElementById('topP');
+            const topPValue = document.getElementById('topPValue');
+            const topKInput = document.getElementById('topK');
+            const topKValue = document.getElementById('topKValue');
+            const saveCheckbox = document.getElementById('save');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const imageContainer = document.getElementById('imageContainer');
+            const resultDetails = document.getElementById('resultDetails');
+            const originalPromptEl = document.getElementById('originalPrompt');
+            const enhancedPromptEl = document.getElementById('enhancedPrompt');
+            const galleryContainer = document.getElementById('galleryContainer');
+            const galleryTab = document.getElementById('gallery-tab');
+            const modalImage = document.getElementById('modalImage');
+            
+            // Input range value display
+            temperatureInput.addEventListener('input', () => {
+                temperatureValue.textContent = temperatureInput.value;
+            });
+            
+            topPInput.addEventListener('input', () => {
+                topPValue.textContent = topPInput.value;
+            });
+            
+            topKInput.addEventListener('input', () => {
+                topKValue.textContent = topKInput.value;
+            });
+            
+            // Sample prompts
+            document.querySelectorAll('.sample-prompt').forEach(button => {
+                button.addEventListener('click', () => {
+                    promptInput.value = button.textContent;
+                });
+            });
+            
+            // Form submission
+            imageForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // Show loading spinner
+                loadingSpinner.style.display = 'block';
+                imageContainer.innerHTML = '';
+                resultDetails.style.display = 'none';
+                
+                try {
+                    const response = await fetch('/api/generate-image', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            prompt: promptInput.value,
+                            model: modelSelect.value,
+                            temperature: parseFloat(temperatureInput.value),
+                            topP: parseFloat(topPInput.value),
+                            topK: parseInt(topKInput.value),
+                            save: saveCheckbox.checked
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Display the image
+                        const img = document.createElement('img');
+                        img.src = data.result.image_path;
+                        img.alt = 'Generated image';
+                        img.classList.add('generated-image');
+                        imageContainer.innerHTML = '';
+                        imageContainer.appendChild(img);
+                        
+                        // Display result details
+                        originalPromptEl.textContent = data.result.prompt;
+                        enhancedPromptEl.textContent = data.result.enhanced_prompt || 'No enhanced prompt available';
+                        resultDetails.style.display = 'block';
+                        
+                        // Add success message
+                        const alert = document.createElement('div');
+                        alert.className = 'alert alert-success';
+                        alert.textContent = 'Image generated successfully!';
+                        
+                        // If there was an error but we still got a fallback image
+                        if (data.result.error) {
+                            alert.className = 'alert alert-warning';
+                            alert.textContent = `Note: ${data.result.error} (Using fallback image)`;
+                        }
+                        
+                        imageContainer.prepend(alert);
+                        
+                        // Automatically remove alert after 3 seconds
+                        setTimeout(() => {
+                            alert.remove();
+                        }, 3000);
+                    } else {
+                        // Display error
+                        imageContainer.innerHTML = `<div class="alert alert-danger">${data.error || 'An error occurred'}</div>`;
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    imageContainer.innerHTML = `<div class="alert alert-danger">Failed to generate image: ${error.message}</div>`;
+                } finally {
+                    // Hide loading spinner
+                    loadingSpinner.style.display = 'none';
+                }
+            });
+            
+            // Load gallery images
+            async function loadGallery() {
+                try {
+                    const response = await fetch('/api/images');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        if (data.images.length === 0) {
+                            galleryContainer.innerHTML = '<p class="text-center">No images generated yet.</p>';
+                            return;
+                        }
+                        
+                        galleryContainer.innerHTML = '';
+                        
+                        data.images.forEach(image => {
+                            const col = document.createElement('div');
+                            col.className = 'col-md-4 col-sm-6 mb-4';
+                            
+                            col.innerHTML = `
+                                <div class="card">
+                                    <img src="${image}" alt="Generated image" class="gallery-image" data-bs-toggle="modal" data-bs-target="#imageModal">
+                                    <div class="card-footer text-center">
+                                        <a href="${image}" class="btn btn-sm btn-outline-primary" target="_blank">View Full Size</a>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            galleryContainer.appendChild(col);
+                            
+                            // Add click event to show in modal
+                            const img = col.querySelector('.gallery-image');
+                            img.addEventListener('click', () => {
+                                modalImage.src = image;
+                            });
+                        });
+                    } else {
+                        galleryContainer.innerHTML = `<div class="alert alert-danger">${data.error || 'An error occurred loading gallery'}</div>`;
+                    }
+                } catch (error) {
+                    console.error('Error loading gallery:', error);
+                    galleryContainer.innerHTML = `<div class="alert alert-danger">Failed to load gallery: ${error.message}</div>`;
+                }
+            }
+            
+            // Load gallery when tab is shown
+            galleryTab.addEventListener('shown.bs.tab', loadGallery);
+            
+            // Initial load if gallery is the active tab
+            if (galleryTab.classList.contains('active')) {
+                loadGallery();
+            }
+        });
+    </script>
+</body>
+</html>
