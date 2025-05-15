@@ -3,12 +3,12 @@ services:
     build: .
     container_name: gemini-image-gen-mcp
     ports:
-      - "3020:3020"
+      - "3070:3070"
     volumes:
       - ./generated-images:/app/generated-images
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN}
-      - PORT=3020
+      - PORT=3070
       - LOG_LEVEL=info
     restart: unless-stopped

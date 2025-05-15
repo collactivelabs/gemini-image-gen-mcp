@@ -27,7 +27,7 @@ const geminiService = new GeminiService();
 
 // Set up Express app
 const app = express();
-const port = process.env.PORT || 3020;
+const port = process.env.PORT || 3021;
 
 // Configure multer for file uploads (if needed later)
 const upload = multer({ dest: 'uploads/' });

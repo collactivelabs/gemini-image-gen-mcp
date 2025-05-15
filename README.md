@@ -76,7 +76,7 @@ Or use the provided script:
 ./start-server.sh
 ```
 
-The web interface will be available at http://localhost:3020 (or the port specified in your .env file).
+The web interface will be available at http://localhost:3070 (or the port specified in your .env file).
 
 #### Option 2: Using Docker
 
@@ -92,7 +92,7 @@ The project includes a web interface for testing and demonstrating the image gen
 - **Gallery**: View all previously generated images
 - **About**: Information about the project and its features
 
-To access the web interface, navigate to http://localhost:3020 in your browser after starting the web server.
+To access the web interface, navigate to http://localhost:3070 in your browser after starting the web server.
 
 ## Usage with Claude
 
@@ -143,7 +143,7 @@ The MCP server supports the following configuration options:
 |--------|-------------|---------|
 | `GEMINI_API_KEY` | Google API key with Gemini access | (Required) |
 | `MCP_AUTH_TOKEN` | Authentication token for MCP | (Optional) |
-| `PORT` | Web server port | `3020` |
+| `PORT` | Web server port | `3070` |
 | `OUTPUT_DIR` | Directory for saved images | `./generated-images` |
 | `LOG_LEVEL` | Logging level (debug, info, warn, error) | `info` |
 

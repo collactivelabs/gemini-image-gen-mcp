@@ -10,7 +10,7 @@ RUN npm install
 COPY . .
 
 # Expose port for web interface
-EXPOSE 3020
+EXPOSE 3070
 
 # Create a script to start both servers
 RUN echo '#!/bin/bash\nnode src/index.js &\nnode src/web-server.js' > /app/start-services.sh && \
