@@ -34,10 +34,10 @@ if [ "$MCP_SERVER" = true ] && [ "$WEB_SERVER" = true ]; then
   node src/mcp-server.js &
   MCP_PID=$!
   echo "MCP server started with PID: $MCP_PID"
-  
+
   echo "Starting web interface..."
   node src/web-server.js
-  
+
   # When web server stops, kill MCP server
   kill $MCP_PID
 elif [ "$MCP_SERVER" = true ]; then

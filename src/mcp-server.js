@@ -2,7 +2,6 @@
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { GeminiService } from './gemini-service.js';
-import { Logger } from './utils/logger.js';
 
 // Load environment variables
 try {
@@ -17,12 +16,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Log function that writes to stderrc
-const logger = new Logger();
+function log(message) {
+  console.error(`[${new Date().toISOString()}] ${message}`);
+}
 
 // Initialize Gemini service
 const geminiService = new GeminiService();
-
-logger.info(`Using output directory: ${geminiService.outputDir}`);
 
 // MCP Server Implementation
 class MCPServer {
@@ -81,6 +80,7 @@ class MCPServer {
               process.stdout.write(JSON.stringify(notification) + '\n');
             }
           }, 100);
+
           return null; // Already sent
 
         case 'notifications/initialized':
@@ -133,7 +133,7 @@ class MCPServer {
                       save: {
                         type: 'boolean',
                         description: 'Whether to save the generated image to the filesystem',
-                        default: true
+                        default: 'true'
                       }
                     },
                     required: ['prompt']
@@ -170,7 +170,7 @@ class MCPServer {
           if (name === 'generate_image') {
             try {
               if (!args.prompt) {
-                logger.error("generate_image", 'Prompt is required for image generation');
+                log('Prompt is required for image generation')
                 throw new Error('Prompt is required for image generation');
               }
               
@@ -183,16 +183,21 @@ class MCPServer {
               };
               
               const result = await geminiService.generateImage(args.prompt, options);
+              log(`Image generated successfully: ${JSON.stringify(result)}`);
               
               if (result) {
                 let responseText = `Image generated successfully!\n\nPrompt: ${args.prompt}`;
-                
-                if (result.enhanced_prompt) {
-                  responseText += `\n\nEnhanced prompt: ${result.enhanced_prompt}`;
-                }
-                
+
                 if (result.local_path) {
                   responseText += `\n\nSaved to: ${result.local_path}`;
+                }
+
+                if (result.fileUri) {
+                    responseText += `\n\nImage URL: ${result.fileUri}`;
+                }
+                
+                if (result.enhanced_prompt) {
+                  responseText += `\n\nRevised prompt: ${result.enhanced_prompt}`;
                 }
                 
                 if (result.error) {
@@ -212,11 +217,11 @@ class MCPServer {
                   }
                 };
               } else {
-                logger.error('handleGenerateImage', 'No image was generated');
+                log('No image was generated');
                 throw new Error('No image was generated');
               }
             } catch (error) {
-              logger.error('handleGenerateImage', `Error generating image: ${error.message}`);
+              log(`Error generating image: ${error.message}`);
               return {
                 jsonrpc: '2.0',
                 id,
@@ -253,7 +258,7 @@ class MCPServer {
           return null;
       }
     } catch (error) {
-      logger.error('handleRequest', `Error handling request: ${error.message}`);
+      log(`Error handling request: ${error.message}`);
       return {
         jsonrpc: '2.0',
         id: request.id || null,
@@ -283,7 +288,7 @@ class MCPServer {
               process.stdout.write(JSON.stringify(response) + '\n');
             }
           }).catch(error => {
-            logger.error('processInput', `Error processing request: ${error.message}`);
+            log(`Error processing request: ${error.message}`);
             // Send proper error response
             const errorResponse = {
               jsonrpc: '2.0',
@@ -297,7 +302,7 @@ class MCPServer {
             process.stdout.write(JSON.stringify(errorResponse) + '\n');
           });
         } catch (error) {
-          logger.error('processInput', `Error parsing JSON: ${error.message}`);
+          log(`Error parsing JSON: ${error.message}`);
           // Send parse error if there's likely an id
           const errorResponse = {
             jsonrpc: '2.0',
@@ -315,10 +320,10 @@ class MCPServer {
   }
 
   start() {
-    logger.info('MCP Server starting...');
-    
+    log('MCP Server starting...');
+
     if (!process.env.GEMINI_API_KEY) {
-      logger.warn('GEMINI_API_KEY not set. Image generation will fail.');
+      log('Warning: GEMINI_API_KEY not set. Image generation will fail.');
     }
     
     // Set up stdin
@@ -331,35 +336,34 @@ class MCPServer {
     
     process.stdin.on('data', chunk => this.processInput(chunk));
     process.stdin.on('end', () => {
-      logger.info('Input stream ended');
+      log('Input stream ended');
       process.exit(0);
     });
     
     // Handle errors
     process.on('uncaughtException', error => {
-      logger.error('MCP Server Start', `Uncaught exception error: ${error.message}`);
-      logger.error('MCP Server Start', `Uncaught exception stack:  ${error.message}`);
-
+      log(`Uncaught exception: ${error.message}`);
+      log(`Stack: ${error.stack}`);
       process.exit(1);
     });
     
     process.on('unhandledRejection', (reason, promise) => {
-      logger.error('MCP Server Start', `Unhandled rejection: ${reason}`);
+      log(`Unhandled rejection: ${reason}`);
       process.exit(1);
     });
-
+    
     // Ensure clean exit
     process.on('SIGINT', () => {
-      logger.info('Received SIGINT, shutting down gracefully');
+      log('Received SIGINT, shutting down gracefully');
       process.exit(0);
     });
     
     process.on('SIGTERM', () => {
-      logger.info('Received SIGTERM, shutting down gracefully');
+      log('Received SIGTERM, shutting down gracefully');
       process.exit(0);
     });
-
-    logger.info('MCP Server ready');
+    
+    log('MCP Server ready');
   }
 }
 

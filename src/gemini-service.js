@@ -23,7 +23,7 @@ export class GeminiService {
     // Set up output directory
     this.outputDir = process.env.OUTPUT_DIR || path.join(__dirname, '..', 'generated-images');
     this.logger = new Logger();
-    
+
     try {
       if (!fs.existsSync(this.outputDir)) {
         fs.mkdirSync(this.outputDir, { recursive: true });
@@ -49,7 +49,7 @@ export class GeminiService {
   async generateImage(prompt, options = {}) {
     try {
       // Use the specific image generation model for Gemini
-      const modelName = 'gemini-2.0-flash-preview-image-generation';
+      const modelName = options.model || 'gemini-2.0-flash-preview-image-generation';
       this.logger.info(`Using model: ${modelName}`);
       this.logger.info(`Generating image with prompt: "${prompt.substring(0, 50)}..."`);
 
@@ -70,45 +70,46 @@ export class GeminiService {
 
       // Process the response to extract the generated image
       let imageData = null;
+      let imageUri = '';
       let responseText = '';
-      
+
       // Get the response object
       const result = response;
-      
+
       // Extract text and image from parts array in response
-      if (result && 
-          result.candidates && 
-          result.candidates.length > 0 && 
-          result.candidates[0].content && 
+      if (result &&
+          result.candidates &&
+          result.candidates.length > 0 &&
+          result.candidates[0].content &&
           result.candidates[0].content.parts) {
-        
+
         const parts = result.candidates[0].content.parts;
-        
+
         for (const part of parts) {
           if (part.text) {
             responseText += part.text;
             this.logger.debug(`Response text: ${part.text.substring(0, 50)}...`);
           }
-          
-          if (part.inlineData && 
-              part.inlineData.mimeType && 
+          if (part.inlineData &&
+              part.inlineData.mimeType &&
               part.inlineData.mimeType.startsWith('image/')) {
             imageData = part.inlineData.data;
+            imageUri = part.fileData?.fileUri;
             this.logger.debug('Found image data in response');
           }
         }
       }
-      
+
       // If no image data was found in the response
       if (!imageData) {
         this.logger.error('Generating image','No image data found in response');
         throw new Error('No image data found in response');
       }
-      
+
       // Save the image to a file
       const filename = `image_${Date.now()}.png`;
       const filePath = path.join(this.outputDir, filename);
-      
+
       // Convert base64 to buffer and save
       try {
         const buffer = Buffer.from(imageData, 'base64');
@@ -118,9 +119,10 @@ export class GeminiService {
         this.logger.error("Generating image",`Error saving image: ${saveError.message}`);
         throw saveError;
       }
-      
+
       return {
         local_path: filePath,
+        fileUri: imageUri,
         enhanced_prompt: responseText
       };
     } catch (error) {
@@ -129,7 +131,7 @@ export class GeminiService {
       this.logger.info('Using placeholder image as fallback');
       const filename = `image_${Date.now()}_placeholder.png`;
       const filePath = path.join(this.outputDir, filename);
-      
+
       // Generate a placeholder image
       try {
         await this.downloadImage("https://placehold.co/1024x1024/EEE/31343C?text=Gemini+Image", filePath);
@@ -155,15 +157,15 @@ export class GeminiService {
           reject(new Error(`Failed to download image, status code: ${response.statusCode}`));
           return;
         }
-        
+
         const file = fs.createWriteStream(filename);
         response.pipe(file);
-        
+
         file.on('finish', () => {
           file.close();
           resolve(filename);
         });
-        
+
         file.on('error', (err) => {
           fs.unlink(filename, () => {});
           reject(err);

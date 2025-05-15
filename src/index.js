@@ -136,7 +136,7 @@ class GeminiImageServer {
       if (request.params.name === 'generate_image') {
         return this.handleGenerateImage(request.params.arguments, request.id);
       }
-      
+
       this.logger.error("SetRequestHandler", `Unknown tool: ${request.params.name}`);
       throw new Error(`Unknown tool: ${request.params.name}`);
     });
@@ -150,7 +150,7 @@ class GeminiImageServer {
         this.logger.error("generate_image", 'Prompt is required for image generation');
         throw new Error('Prompt is required for image generation');
       }
-      
+
       const options = {
         model: args.model || 'gemini-2.0-flash-preview-image-generation',
         temperature: args.temperature !== undefined ? args.temperature : 1.0,
@@ -158,20 +158,20 @@ class GeminiImageServer {
         topK: args.topK !== undefined ? args.topK : 40,
         save: args.save !== false
       };
-      
+
       const result = await this.geminiService.generateImage(args.prompt, options);
-      
+
       // Prepare response
       let responseText = `Image generated successfully!\n\nPrompt: ${args.prompt}`;
-      
+
       if (result.enhanced_prompt) {
         responseText += `\n\nEnhanced prompt: ${result.enhanced_prompt}`;
       }
-      
+
       if (result.local_path) {
         responseText += `\n\nSaved to: ${result.local_path}`;
       }
-      
+
       return {
         content: [
           {
@@ -200,13 +200,13 @@ class GeminiImageServer {
       const transport = new StdioServerTransport();
       await this.server.connect(transport);
       this.logger.info('Gemini Image Generation MCP server running');
-      
+
       // Keep the process running
       process.on('SIGINT', () => {
         this.server.close().catch(err => this.logger.error('SIGINT', err));
         process.exit(0);
       });
-      
+
       process.on('SIGTERM', () => {
         this.server.close().catch(err => this.logger.error('SIGTERM', err));
         process.exit(0);

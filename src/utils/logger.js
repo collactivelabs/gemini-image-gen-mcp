@@ -18,7 +18,7 @@ export class Logger {
     this.logLevel = options.logLevel || (process.env.NODE_ENV === 'production' ? LOG_LEVELS.INFO : LOG_LEVELS.DEBUG);
     this.logToFile = options.logToFile || false;
     this.logFilePath = options.logFilePath || path.join(process.cwd(), 'logs', 'mcp.log');
-    
+
     // Create logs directory if logging to file
     if (this.logToFile) {
       const logsDir = path.dirname(this.logFilePath);
@@ -27,7 +27,7 @@ export class Logger {
       }
     }
   }
-  
+
   /**
    * Format a log message with timestamp and level
    * @param {string} level - Log level
@@ -36,19 +36,20 @@ export class Logger {
    */
   formatLogMessage(level, message) {
     const timestamp = new Date().toISOString();
-    return `[${timestamp}] [${level}] ${message}`;
+    const appName = 'gemini image generation';
+    return `[${timestamp}], ${message}`;
   }
-  
+
   /**
    * Write a log message to the log file
    * @param {string} message - Formatted log message
    */
   writeToFile(message) {
     if (!this.logToFile) return;
-    
+
     fs.appendFileSync(this.logFilePath, message + '\n');
   }
-  
+
   /**
    * Log an error message
    * @param {string} message - Error message
@@ -58,18 +59,18 @@ export class Logger {
     if (this.logLevel >= LOG_LEVELS.ERROR) {
       const formattedMessage = this.formatLogMessage('ERROR', message);
       console.error(formattedMessage);
-      
+
       if (error) {
         console.error(error);
       }
-      
+
       this.writeToFile(formattedMessage);
       if (error) {
         this.writeToFile(error.stack || error.toString());
       }
     }
   }
-  
+
   /**
    * Log a warning message
    * @param {string} message - Warning message
@@ -81,7 +82,7 @@ export class Logger {
       this.writeToFile(formattedMessage);
     }
   }
-  
+
   /**
    * Log an info message
    * @param {string} message - Info message
@@ -93,7 +94,7 @@ export class Logger {
       this.writeToFile(formattedMessage);
     }
   }
-  
+
   /**
    * Log a debug message
    * @param {string} message - Debug message
@@ -105,7 +106,7 @@ export class Logger {
       this.writeToFile(formattedMessage);
     }
   }
-  
+
   /**
    * Log request information for an MCP request
    * @param {Object} req - Express request object
@@ -117,26 +118,26 @@ export class Logger {
     const method = req.method;
     const path = req.path;
     const ip = req.ip;
-    
+
     let message = `Request ${requestId} ${status} - ${method} ${path} from ${ip}`;
-    
+
     if (data.prompt) {
       // Truncate long prompts
-      const truncatedPrompt = data.prompt.length > 50 
-        ? `${data.prompt.substring(0, 50)}...` 
+      const truncatedPrompt = data.prompt.length > 50
+        ? `${data.prompt.substring(0, 50)}...`
         : data.prompt;
-      
+
       message += ` - Prompt: "${truncatedPrompt}"`;
     }
-    
+
     if (data.error) {
       message += ` - Error: ${data.error}`;
     }
-    
+
     if (data.responseTime) {
       message += ` - Response time: ${data.responseTime}ms`;
     }
-    
+
     this.info(message);
   }
 }
