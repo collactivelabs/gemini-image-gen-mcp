@@ -23,6 +23,11 @@ generated-images/
 generated-images/*
 !generated-images/.gitkeep
 
+# Generated videos
+generated-videos/
+generated-videos/*
+!generated-videos/.gitkeep
+
 # Runtime data
 pids
 *.pid

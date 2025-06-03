@@ -41,6 +41,10 @@ app.use(express.static(join(__dirname, '..', 'public')));
 // Serve generated images
 app.use('/generated-images', express.static(join(__dirname, '..', 'generated-images')));
 
+// Serve generated videos
+app.use('/generated-videos', express.static(join(__dirname, '..', 'generated-videos')));
+
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Gemini Image Generation MCP server is running' });
@@ -61,12 +65,12 @@ app.post('/api/generate-image', async (req, res) => {
     logger.info(`Web interface: Generating image with prompt: "${prompt}"`);
 
     const options = {
-      model: model || 'gemini-2.0-flash-preview-image-generation',
-      temperature: temperature !== undefined ? parseFloat(temperature) : 1.0,
-      topP: topP !== undefined ? parseFloat(topP) : 0.95,
-      topK: topK !== undefined ? parseInt(topK) : 40,
-      save: save !== false
-    };
+			model: model || 'gemini-2.0-flash-preview-image-generation',
+			temperature: temperature !== undefined ? parseFloat(temperature) : 1.0,
+			topP: topP !== undefined ? parseFloat(topP) : 0.95,
+			topK: topK !== undefined ? parseInt(topK) : 40,
+			save: save !== false
+		};
 
     const result = await geminiService.generateImage(prompt, options);
 
@@ -97,10 +101,112 @@ app.post('/api/generate-image', async (req, res) => {
   }
 });
 
+// Generate vedio endpoint
+app.post('/api/generate-video', async (req, res) => {
+  try {
+    const { prompt, model, temperature, topP, topK, save } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prompt is required'
+      });
+    }
+
+    logger.info(`Web interface: Generating video with prompt: "${prompt}"`);
+
+    const options = {
+      model: model || 'veo-2.0-generate-001',
+      temperature: temperature !== undefined ? parseFloat(temperature) : 1.0,
+      topP: topP !== undefined ? parseFloat(topP) : 0.9 ,
+      topK: topK !== undefined ? parseInt(topK) : 40,
+      save: save !== false
+    };
+
+    const result = await geminiService.generateVideo(prompt, options);
+
+    // Get video URL relative to our web server
+    let videoUrl = result.local_path;
+    if (videoUrl) {
+      // Convert absolute path to web URL
+      const relativePath = videoUrl.split('generated-videos')[1];
+      videoUrl = `/generated-videos${relativePath}`;
+    }
+
+    res.json({
+      success: true,
+      result: {
+        prompt,
+        enhanced_prompt: result.enhanced_prompt,
+        video_path: videoUrl,
+        full_result: result,
+        error: result.error // Pass along any error for UI display        
+      }
+    });
+  } catch (error) {
+    logger.error('Generate Video', `Error generating video: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Generate vedio from image endpoint
+app.post('/api/generate-video-from-image', async (req, res) => {
+  try {
+    const { prompt, model, temperature, topP, topK, save } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prompt is required'
+      });
+    }
+
+    logger.info(`Web interface: Generating video from image with prompt: "${prompt}"`);
+
+    const options = {
+      model: model || 'veo-2.0-generate-001',
+      temperature: temperature !== undefined ? parseFloat(temperature) : 1.0,
+      topP: topP !== undefined ? parseFloat(topP) : 0.9 ,
+      topK: topK !== undefined ? parseInt(topK) : 40,
+      save: save !== false
+    };
+
+    const result = await geminiService.generateVideoFromImage(prompt, options);
+
+    // Get video URL relative to our web server
+    let videoUrl = result.local_path;
+    if (videoUrl) {
+      // Convert absolute path to web URL
+      const relativePath = videoUrl.split('generated-images')[1];
+      videoUrl = `/generated-images${relativePath}`;
+    }
+
+    res.json({
+        success: true,
+        result: {
+          prompt,
+          enhanced_prompt: result.enhanced_prompt,
+          video_path: videoUrl,
+          full_result: result,
+          error: result.error // Pass along any error for UI display        
+        }
+        });
+    } catch (error) {
+      logger.error('Generate Video From Image', `Error generating video from image: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+});
+
 // Get all generated images endpoint
 app.get('/api/images', (req, res) => {
   try {
-    const outputDir = geminiService.outputDir;
+    const outputDir = geminiService.outputImageDir;
     const files = fs.readdirSync(outputDir)
       .filter(file => file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg'))
       .map(file => `/generated-images/${file}`);
@@ -111,6 +217,27 @@ app.get('/api/images', (req, res) => {
     });
   } catch (error) {
     logger.error('Get Images', `Error getting images: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get all generated videos endpoint
+app.get('/api/videos', (req, res) => {
+  try {
+    const outputDir = geminiService.outputVideoDir;
+    const files = fs.readdirSync(outputDir)
+      .filter(file => file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg'))
+      .map(file => `/generated-videos/${file}`);
+
+    res.json({
+      success: true,
+      images: files
+    });
+  } catch (error) {
+    logger.error('Get Videos', `Error getting videos: ${error.message}`);
     res.status(500).json({
       success: false,
       error: error.message
