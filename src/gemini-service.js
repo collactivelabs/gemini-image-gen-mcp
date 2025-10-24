@@ -1,5 +1,5 @@
 import { GoogleGenAI, Modality } from '@google/genai';
-import fs, { createWriteStream } from 'fs';
+import fs, { createWriteStream, promises as fsPromises } from 'fs';
 import path from 'path';
 import https from 'https';
 import { fileURLToPath } from 'url';
@@ -74,7 +74,6 @@ export class GeminiService {
             this.logger.info(`Using model: ${modelName}`);
             this.logger.info(`Generating image with prompt: "${prompt.substring(0, 50)}..."`);
 
-            //if (modelName === 'gemini-2.0-flash-preview-image-generation') {
             // Generate content according to documentation
             const response = await client.models.generateContent({
                 model: modelName,
@@ -87,23 +86,6 @@ export class GeminiService {
                     responseModalities: [Modality.TEXT, Modality.IMAGE],
                 }
             });
-            /*}else {
-                response = await client.models.generateImages({
-                        model: modelName,
-                        prompt: prompt,
-                        config: {
-                            numberOfImages: 4,
-                        },
-                });
-
-                let idx = 1;
-                for (const generatedImage of response.generatedImages) {
-                        let imgBytes = generatedImage.image.imageBytes;
-                        const buffer = Buffer.from(imgBytes, "base64");
-                        fs.writeFileSync(`imagen-${idx}.png`, buffer);
-                        idx++;
-                }
-            }*/
 
             this.logger.info('Image generation request completed');
 
@@ -152,7 +134,7 @@ export class GeminiService {
             // Convert base64 to buffer and save
             try {
                 const buffer = Buffer.from(imageData, 'base64');
-                fs.writeFileSync(filePath, buffer);
+                await fsPromises.writeFile(filePath, buffer);
                 this.logger.info(`Image saved to ${filePath}`);
             } catch (saveError) {
                 this.logger.error("Generating image", `Error saving image: ${saveError.message}`);
@@ -210,13 +192,24 @@ export class GeminiService {
             let videoUri = '';
             let responseText = '';
 
-            // Poll for completion with timeout (max 5 minutes)
+            // Poll for completion with exponential backoff (max 5 minutes)
             const maxPollingTime = 5 * 60 * 1000; // 5 minutes in milliseconds
-            const pollInterval = 10000; // 10 seconds
             const startTime = Date.now();
+            let pollAttempt = 0;
+            const basePollInterval = 2000; // Start with 2 seconds
+            const maxPollInterval = 30000; // Cap at 30 seconds
 
             while (!operation.done) {
-                await new Promise((resolve) => setTimeout(resolve, pollInterval));
+                // Exponential backoff with jitter: min(max, base * 2^attempt) + random(0-1000ms)
+                const exponentialDelay = Math.min(
+                    maxPollInterval,
+                    basePollInterval * Math.pow(2, pollAttempt)
+                );
+                const jitter = Math.random() * 1000; // Add 0-1s random jitter
+                const delay = exponentialDelay + jitter;
+
+                this.logger.debug(`Polling video operation (attempt ${pollAttempt + 1}, waiting ${Math.round(delay)}ms)`);
+                await new Promise((resolve) => setTimeout(resolve, delay));
 
                 // Check if we've exceeded the maximum polling time
                 if (Date.now() - startTime > maxPollingTime) {
@@ -226,7 +219,11 @@ export class GeminiService {
                 operation = await client.operations.getVideosOperation({
                     operation: operation,
                 });
+
+                pollAttempt++;
             }
+
+            this.logger.info(`Video generation completed after ${pollAttempt + 1} polling attempts`);
 
             // Get the response object
             const result = operation.response;
@@ -259,7 +256,7 @@ export class GeminiService {
             // Convert base64 to buffer and save
             try {
                 const buffer = Buffer.from(videoData, 'base64');
-                fs.writeFileSync(filePath, buffer);
+                await fsPromises.writeFile(filePath, buffer);
                 this.logger.info(`Video saved to ${filePath}`);
             } catch (saveError) {
                 this.logger.error("Generating video", `Error saving video: ${saveError.message}`);
@@ -329,13 +326,24 @@ export class GeminiService {
             let videoUri = '';
             let responseText = '';
 
-            // Poll for completion with timeout (max 5 minutes)
+            // Poll for completion with exponential backoff (max 5 minutes)
             const maxPollingTime = 5 * 60 * 1000; // 5 minutes in milliseconds
-            const pollInterval = 10000; // 10 seconds
             const startTime = Date.now();
+            let pollAttempt = 0;
+            const basePollInterval = 2000; // Start with 2 seconds
+            const maxPollInterval = 30000; // Cap at 30 seconds
 
             while (!operation.done) {
-                await new Promise((resolve) => setTimeout(resolve, pollInterval));
+                // Exponential backoff with jitter: min(max, base * 2^attempt) + random(0-1000ms)
+                const exponentialDelay = Math.min(
+                    maxPollInterval,
+                    basePollInterval * Math.pow(2, pollAttempt)
+                );
+                const jitter = Math.random() * 1000; // Add 0-1s random jitter
+                const delay = exponentialDelay + jitter;
+
+                this.logger.debug(`Polling video operation (attempt ${pollAttempt + 1}, waiting ${Math.round(delay)}ms)`);
+                await new Promise((resolve) => setTimeout(resolve, delay));
 
                 // Check if we've exceeded the maximum polling time
                 if (Date.now() - startTime > maxPollingTime) {
@@ -345,7 +353,11 @@ export class GeminiService {
                 operation = await client.operations.getVideosOperation({
                     operation: operation,
                 });
+
+                pollAttempt++;
             }
+
+            this.logger.info(`Video generation completed after ${pollAttempt + 1} polling attempts`);
 
             // Get the response object
             const result = operation.response;
@@ -378,7 +390,7 @@ export class GeminiService {
             // Convert base64 to buffer and save
             try {
                 const buffer = Buffer.from(videoData, 'base64');
-                fs.writeFileSync(filePath, buffer);
+                await fsPromises.writeFile(filePath, buffer);
                 this.logger.info(`Video saved to ${filePath}`);
             } catch (saveError) {
                 this.logger.error("Generating video from image", `Error saving video: ${saveError.message}`);
@@ -431,8 +443,12 @@ export class GeminiService {
                     resolve(filename);
                 });
 
-                file.on('error', (err) => {
-                    fs.unlink(filename, () => { });
+                file.on('error', async (err) => {
+                    try {
+                        await fsPromises.unlink(filename);
+                    } catch (unlinkErr) {
+                        // Ignore unlink errors
+                    }
                     reject(err);
                 });
             }).on('error', (err) => {

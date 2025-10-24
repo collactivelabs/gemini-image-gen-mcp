@@ -5,6 +5,7 @@ import { body, validationResult } from 'express-validator';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { GeminiService } from './gemini-service.js';
+import { authenticate } from './middleware/auth.js';
 import fs from 'fs';
 import { Logger } from './utils/logger.js';
 
@@ -116,7 +117,7 @@ app.get('/health', (req, res) => {
 });
 
 // Generate image endpoint
-app.post('/api/generate-image', generationLimiter, validateImageGeneration, handleValidationErrors, async (req, res) => {
+app.post('/api/generate-image', generationLimiter, authenticate, validateImageGeneration, handleValidationErrors, async (req, res) => {
   try {
     const { prompt, model, temperature, topP, topK, save } = req.body;
 
@@ -160,7 +161,7 @@ app.post('/api/generate-image', generationLimiter, validateImageGeneration, hand
 });
 
 // Generate video endpoint
-app.post('/api/generate-video', generationLimiter, validateImageGeneration, handleValidationErrors, async (req, res) => {
+app.post('/api/generate-video', generationLimiter, authenticate, validateImageGeneration, handleValidationErrors, async (req, res) => {
   try {
     const { prompt, model, temperature, topP, topK, save } = req.body;
 
@@ -204,7 +205,7 @@ app.post('/api/generate-video', generationLimiter, validateImageGeneration, hand
 });
 
 // Generate video from image endpoint
-app.post('/api/generate-video-from-image', generationLimiter, validateImageGeneration, handleValidationErrors, async (req, res) => {
+app.post('/api/generate-video-from-image', generationLimiter, authenticate, validateImageGeneration, handleValidationErrors, async (req, res) => {
   try {
     const { prompt, model, temperature, topP, topK, save } = req.body;
 
