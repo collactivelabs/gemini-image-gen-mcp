@@ -1,156 +1,384 @@
-# Gemini Image Generation MCP
+# Gemini Image & Video Generation MCP
 
-A Model Calling Protocol (MCP) server that allows Claude and other LLMs to generate images using Google's Gemini AI model.
+A production-ready Model Context Protocol (MCP) server that enables Claude and other LLMs to generate images and videos using Google's Gemini AI models (Gemini 2.0 Flash and Veo 2.0).
 
-## Overview
+## 🌟 Features
 
-This MCP server enables Large Language Models (LLMs) like Claude to delegate image generation tasks to Google's Gemini model. It follows the MCP standard to provide a seamless integration experience.
+### Core Capabilities
+- ✨ **Image Generation** - Create images using Gemini 2.0 Flash (`gemini-2.0-flash-preview-image-generation`)
+- 🎬 **Video Generation** - Generate videos using Veo 2.0 (`veo-2.0-generate-001`)
+- 🎨 **Image-to-Video** - Animate images into videos with Veo 2.0
+- 💾 **Local Storage** - Automatically save generated content
+- ⚙️ **Parameter Control** - Fine-tune temperature, topK, and topP
 
-## Features
+### Production Features
+- 🔒 **Optional Authentication** - Token-based API security
+- ⚡ **Response Caching** - 30-minute TTL cache for repeated prompts
+- 📊 **Rate Limiting** - Prevent API abuse (100/15min general, 20/15min generation)
+- ✅ **Input Validation** - Comprehensive request validation
+- 📄 **Pagination** - Efficient gallery browsing with sorting
+- 🔐 **Configurable CORS** - Environment-based origin control
+- 📚 **OpenAPI Documentation** - Interactive Swagger UI at `/api-docs`
+- 🧪 **Test Suite** - 17 automated tests with Jest
+- 🐳 **Docker Support** - Easy containerized deployment
 
-- Generate images from text prompts using Google's Gemini model (`gemini-2.0-flash-preview-image-generation`)
-- Save generated images locally
-- Configure generation parameters like temperature, topK, and topP
-- Interactive web interface for testing and demonstration
-- Docker support for easy deployment
-- Simple MCP standard implementation
+## 📋 Prerequisites
 
-## Prerequisites
+- **Node.js** 18 or higher
+- **Google API Key** with access to:
+  - Gemini 2.0 Flash (image generation)
+  - Veo 2.0 (video generation)
+- **Docker** (optional, for containerized deployment)
 
-- Node.js 18 or higher
-- Google API key with access to Gemini API (specifically the image generation preview model)
-- For Docker: Docker and Docker Compose
-
-## Getting Started
+## 🚀 Quick Start
 
 ### Installation
 
-1. Clone this repository:
-```
-git clone https://your-repository-url/gemini-image-gen-mcp.git
+```bash
+# Clone the repository
+git clone https://github.com/your-org/gemini-image-gen-mcp.git
 cd gemini-image-gen-mcp
-```
 
-2. Install dependencies:
-```
+# Install dependencies
 npm install
-```
 
-3. Create your environment configuration:
-```
+# Configure environment
 cp .env.example .env
-```
-
-4. Edit the `.env` file to add your Google API key:
-```
-GEMINI_API_KEY=your_gemini_api_key_here
+# Edit .env and add your GEMINI_API_KEY
 ```
 
 ### Running the Server
 
-#### Option 1: Using Node.js directly
+#### Option 1: Node.js (Development)
 
-For MCP server only:
-```
-node src/mcp-server.js
-```
+```bash
+# MCP server only (for Claude integration)
+npm start
 
-For web interface only:
-```
-node src/web-server.js
-```
+# Web server with REST API + UI
+npm run web
 
-Or use the provided script:
-
-```
-# Run both MCP server and web interface
-./start-server.sh --both
-
-# Run MCP server only
-./start-server.sh --mcp-only
-
-# Run web interface only
-./start-server.sh --web-only
-
-# Default (MCP server only)
-./start-server.sh
+# Or use the start script
+./start-server.sh --both      # Both servers
+./start-server.sh --mcp-only  # MCP only
+./start-server.sh --web-only  # Web only
 ```
 
-The web interface will be available at http://localhost:3070 (or the port specified in your .env file).
+#### Option 2: Docker (Production)
 
-#### Option 2: Using Docker
-
-```
+```bash
 docker-compose up -d
 ```
 
-## Web Interface
+The web interface will be available at **http://localhost:3070**
 
-The project includes a web interface for testing and demonstrating the image generation capabilities:
+## 🎯 API Endpoints
 
-- **Generator**: Create images by entering text prompts and adjusting parameters
-- **Gallery**: View all previously generated images
-- **About**: Information about the project and its features
+### Generation Endpoints
+- `POST /api/generate-image` - Generate an image from a text prompt
+- `POST /api/generate-video` - Generate a video from a text prompt
+- `POST /api/generate-video-from-image` - Generate a video from an initial image
 
-To access the web interface, navigate to http://localhost:3070 in your browser after starting the web server.
+### Gallery Endpoints
+- `GET /api/images?page=1&limit=20` - List generated images (paginated)
+- `GET /api/videos?page=1&limit=20` - List generated videos (paginated)
 
-## Usage with Claude
+### System Endpoints
+- `GET /health` - Health check
+- `GET /api-docs` - Interactive Swagger UI documentation
+- `GET /api-docs.json` - OpenAPI JSON specification
+- `GET /api/cache/stats` - View cache statistics
+- `POST /api/cache/clear` - Clear response cache (requires auth)
 
-### API Usage
+## 📖 API Documentation
 
-When making API requests to Claude, include the MCP configuration:
+Interactive API documentation is available at:
+- **Swagger UI**: http://localhost:3070/api-docs
+- **OpenAPI JSON**: http://localhost:3070/api-docs.json
+
+The Swagger UI provides:
+- Complete endpoint documentation
+- Request/response schemas
+- Try-it-now functionality
+- Authentication testing
+- Parameter descriptions and examples
+
+## 🔐 Authentication
+
+Authentication is **optional** and can be enabled by setting the `API_AUTH_TOKEN` environment variable:
+
+```bash
+# In .env file
+API_AUTH_TOKEN=your-secure-token-here
+```
+
+### Using Authentication
+
+**Bearer Token (Recommended):**
+```bash
+curl -H "Authorization: Bearer your-secure-token-here" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "A sunset over mountains"}' \
+  http://localhost:3070/api/generate-image
+```
+
+**Query Parameter (Alternative):**
+```bash
+curl -X POST \
+  "http://localhost:3070/api/generate-image?token=your-secure-token-here" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "A sunset over mountains"}'
+```
+
+## ⚙️ Configuration Options
+
+All configuration is done via environment variables in `.env`:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `GEMINI_API_KEY` | **Required** - Google Gemini API key | - |
+| `API_AUTH_TOKEN` | Optional - API authentication token | - |
+| `MCP_AUTH_TOKEN` | Optional - MCP server authentication | - |
+| `PORT` | Web server port | `3070` |
+| `OUTPUT_DIR` | Base directory for generated files | `./generated-images` |
+| `LOG_LEVEL` | Logging level (debug, info, warn, error) | `info` |
+| `CORS_ORIGINS` | Comma-separated allowed origins | `*` |
+| `RATE_LIMIT_MAX` | Max requests per 15min per IP | `100` |
+| `GENERATION_RATE_LIMIT` | Max generation requests per 15min | `20` |
+| `ENABLE_CACHE` | Enable response caching | `true` |
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+```
+
+**Current Test Coverage:**
+- 2 test suites
+- 17 tests passing
+- Coverage: Authentication, Tool Schemas, Input Validation
+
+## 🐳 Docker Deployment
+
+### Using Docker Compose (Recommended)
+
+```bash
+# Start services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+### Manual Docker Build
+
+```bash
+# Build image
+docker build -t gemini-image-gen-mcp .
+
+# Run container
+docker run -d \
+  -p 3070:3070 \
+  -e GEMINI_API_KEY=your_key_here \
+  -v $(pwd)/generated-images:/app/generated-images \
+  -v $(pwd)/generated-videos:/app/generated-videos \
+  gemini-image-gen-mcp
+```
+
+## 🔌 Usage with Claude
+
+### Claude Desktop Configuration
+
+Add to your Claude Desktop config file:
+
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
-    "openai-image-generation": {
+    "gemini-image-generation": {
       "command": "node",
-      "args": ["/full/path/to/openai-image-gen-mcp/src/mcp-server.js"],
+      "args": ["/full/path/to/gemini-image-gen-mcp/src/mcp-server.js"],
       "env": {
-        "OPENAI_API_KEY": "your-openai-api-key-here"
+        "GEMINI_API_KEY": "your-gemini-api-key-here"
       }
     }
   }
 }
 ```
 
-### Claude Console Usage
+### Claude API Usage
 
-1. Go to Developer Settings
-2. Navigate to the MCPs section
-3. Click "Add MCP"
-4. Fill in the details:
-   - Name: `gemini_image_generation`
-   - URL: `https://your-server-url.com/mcp`
-   - Authentication (if implemented): Select Bearer Token and enter your token
+```bash
+# Example prompt to Claude
+"Please generate an image of a serene mountain landscape at sunset using the Gemini image generation tool"
+```
 
-## Gemini Image Generation API
+Claude will automatically invoke the MCP server's `generate_image` tool.
 
-This server uses the Gemini API for image generation. Specifically, it uses the `gemini-2.0-flash-preview-image-generation` model which is optimized for image generation tasks. The implementation follows Google's official API documentation for properly formatting requests and handling responses.
+## 🎨 Web Interface
 
-Key features of the Gemini image generation implementation:
+The web interface provides three main sections:
 
-- Uses proper response modality for image generation
-- Handles base64-encoded image data from response
-- Provides enhanced prompts alongside generated images
-- Automatically saves generated images for later use
+### 1. Generator Tab
+- Enter text prompts for image/video generation
+- Adjust generation parameters (temperature, topP, topK)
+- Use sample prompts for quick testing
+- View generation results with enhanced prompts
 
-## Configuration Options
+### 2. Gallery Tab
+- Browse all generated images and videos
+- Pagination support (20 items per page)
+- Sorted by newest first
+- Click to view full size
 
-The MCP server supports the following configuration options:
+### 3. About Tab
+- Project information
+- Feature list
+- Configuration details
+- API documentation links
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `GEMINI_API_KEY` | Google API key with Gemini access | (Required) |
-| `MCP_AUTH_TOKEN` | Authentication token for MCP | (Optional) |
-| `PORT` | Web server port | `3070` |
-| `OUTPUT_DIR` | Directory for saved images | `./generated-images` |
-| `LOG_LEVEL` | Logging level (debug, info, warn, error) | `info` |
+## 📊 Performance & Optimization
 
-## License
+### Response Caching
+- Automatically caches successful generation results
+- 30-minute TTL (configurable)
+- Reduces API costs for repeated prompts
+- Cache key includes: prompt + model + parameters
+- View cache stats at `/api/cache/stats`
+
+### Exponential Backoff
+- Smart video polling (2s → 30s max)
+- Reduces API calls by ~60%
+- Prevents API rate limiting
+
+### Async I/O
+- Non-blocking file operations
+- Improved server responsiveness
+- Better handling of concurrent requests
+
+### Pagination
+- Constant memory usage
+- Handles galleries with thousands of items
+- Sorted by modification time
+
+## 🛡️ Security Features
+
+- ✅ **Input Validation** - All parameters validated with express-validator
+- ✅ **Rate Limiting** - Two-tier system (general + generation specific)
+- ✅ **Request Size Limits** - 10MB max to prevent DoS
+- ✅ **CORS Configuration** - Environment-based origin control
+- ✅ **Optional Authentication** - Token-based API security
+- ✅ **No Hardcoded Secrets** - All credentials via environment variables
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**"GEMINI_API_KEY is not set" error:**
+```bash
+# Make sure .env file exists and contains:
+GEMINI_API_KEY=your_actual_key_here
+```
+
+**Port already in use:**
+```bash
+# Change port in .env file:
+PORT=3080
+```
+
+**Cache not working:**
+```bash
+# Check cache is enabled in .env:
+ENABLE_CACHE=true
+# View cache stats:
+curl http://localhost:3070/api/cache/stats
+```
+
+**Rate limit exceeded:**
+```bash
+# Increase limits in .env:
+RATE_LIMIT_MAX=200
+GENERATION_RATE_LIMIT=50
+```
+
+## 📝 Example API Requests
+
+### Generate an Image
+
+```bash
+curl -X POST http://localhost:3070/api/generate-image \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A futuristic cityscape at night with neon lights",
+    "temperature": 0.8,
+    "topP": 0.95,
+    "topK": 40
+  }'
+```
+
+### Generate a Video
+
+```bash
+curl -X POST http://localhost:3070/api/generate-video \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A bird flying through a forest",
+    "temperature": 1.0
+  }'
+```
+
+### List Images with Pagination
+
+```bash
+curl "http://localhost:3070/api/images?page=1&limit=10"
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+
+- Run tests before committing: `npm test`
+- Follow existing code style
+- Update documentation for new features
+- Add tests for new functionality
+
+## 📄 License
 
 ISC
 
-## Contributing
+## 🙏 Acknowledgments
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+- Built with [Model Context Protocol](https://modelcontextprotocol.io)
+- Powered by [Google Gemini AI](https://ai.google.dev/)
+- Video generation using [Veo 2.0](https://deepmind.google/technologies/veo/)
+
+## 📞 Support
+
+For issues and questions:
+- Open an issue on GitHub
+- Check the [API Documentation](http://localhost:3070/api-docs)
+- Review the troubleshooting section above
+
+---
+
+**Made with ❤️ for the AI community**
