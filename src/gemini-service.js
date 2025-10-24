@@ -1,11 +1,11 @@
 import { GoogleGenAI, Modality } from '@google/genai';
-import fs from 'fs';
+import fs, { createWriteStream } from 'fs';
 import path from 'path';
 import https from 'https';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { Logger } from './utils/logger.js';
-import e from 'express';
+import { Readable } from 'stream';
 
 // Get current directory
 const __filename = fileURLToPath(import.meta.url);
@@ -33,7 +33,7 @@ export class GeminiService {
                 fs.mkdirSync(this.outputImageDir, { recursive: true });
                 this.logger.info(`Created output directory: ${this.outputImageDir}`);
             }
-            else if (!fs.existsSync(this.outputVideoDir)) {
+            if (!fs.existsSync(this.outputVideoDir)) {
                 fs.mkdirSync(this.outputVideoDir, { recursive: true });
                 this.logger.info(`Created output directory: ${this.outputVideoDir}`);
             }
@@ -210,9 +210,20 @@ export class GeminiService {
             let videoUri = '';
             let responseText = '';
 
+            // Poll for completion with timeout (max 5 minutes)
+            const maxPollingTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+            const pollInterval = 10000; // 10 seconds
+            const startTime = Date.now();
+
             while (!operation.done) {
-                await new Promise((resolve) => setTimeout(resolve, 10000));
-                operation = await ai.operations.getVideosOperation({
+                await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+                // Check if we've exceeded the maximum polling time
+                if (Date.now() - startTime > maxPollingTime) {
+                    throw new Error('Video generation timeout: Operation took longer than 5 minutes');
+                }
+
+                operation = await client.operations.getVideosOperation({
                     operation: operation,
                 });
             }
@@ -224,7 +235,11 @@ export class GeminiService {
             if (result && result.generatedVideos.length > 0) {
 
                 operation.response?.generatedVideos?.forEach(async (generatedVideo, n) => {
-                    const resp = await fetch(`${generatedVideo.video?.uri}&key=${GEMINI_API_KEY}`); // append your API key
+                    // Use URL object to properly add API key as query parameter
+                    const videoUrl = new URL(generatedVideo.video?.uri);
+                    videoUrl.searchParams.append('key', GEMINI_API_KEY);
+
+                    const resp = await fetch(videoUrl.toString());
                     const writer = createWriteStream(`video${n}.mp4`);
                     videoData = writer;
                     Readable.fromWeb(resp.body).pipe(writer);
@@ -314,9 +329,20 @@ export class GeminiService {
             let videoUri = '';
             let responseText = '';
 
+            // Poll for completion with timeout (max 5 minutes)
+            const maxPollingTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+            const pollInterval = 10000; // 10 seconds
+            const startTime = Date.now();
+
             while (!operation.done) {
-                await new Promise((resolve) => setTimeout(resolve, 10000));
-                    operation = await ai.operations.getVideosOperation({
+                await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+                // Check if we've exceeded the maximum polling time
+                if (Date.now() - startTime > maxPollingTime) {
+                    throw new Error('Video generation timeout: Operation took longer than 5 minutes');
+                }
+
+                operation = await client.operations.getVideosOperation({
                     operation: operation,
                 });
             }
@@ -328,9 +354,11 @@ export class GeminiService {
             if (result && result.generatedVideos.length > 0) {
 
                 result.response?.generatedVideos?.forEach(async (generatedVideo, n) => {
-                    const resp = await fetch(
-                        `${generatedVideo.video?.uri}&key=${GEMINI_API_KEY}`, // append your API key
-                    );
+                    // Use URL object to properly add API key as query parameter
+                    const videoUrl = new URL(generatedVideo.video?.uri);
+                    videoUrl.searchParams.append('key', GEMINI_API_KEY);
+
+                    const resp = await fetch(videoUrl.toString());
                     const writer = createWriteStream(`video${n}.mp4`);
                     videoData = writer;
                     Readable.fromWeb(resp.body).pipe(writer);

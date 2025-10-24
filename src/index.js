@@ -220,4 +220,4 @@ class GeminiImageServer {
 
 // Start the server
 const server = new GeminiImageServer();
-server.start().catch(err => this.logger.error('Start', `Error starting server: ${err.message}`));
+server.start().catch(err => server.logger.error('Start', `Error starting server: ${err.message}`));
