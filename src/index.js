@@ -4,6 +4,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { GeminiService } from './gemini-service.js';
+import { GENERATE_IMAGE_SCHEMA } from './tool-schemas.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { Logger } from './utils/logger.js';
@@ -32,48 +33,8 @@ class GeminiImageServer {
         capabilities: {
           tools: {
             generate_image: {
-              description: 'Generate an image using Google Gemini',
-              inputSchema: {
-                type: 'object',
-                properties: {
-                  prompt: {
-                    type: 'string',
-                    description: 'Text description of the image to generate'
-                  },
-                  model: {
-                    type: 'string',
-                    enum: ['gemini-2.0-flash-preview-image-generation'],
-                    description: 'Model to use',
-                    default: 'gemini-2.0-flash-preview-image-generation'
-                  },
-                  temperature: {
-                    type: 'number',
-                    description: 'Temperature for generation (0.0 to 1.0)',
-                    default: 1.0,
-                    minimum: 0.0,
-                    maximum: 1.0
-                  },
-                  topP: {
-                    type: 'number',
-                    description: 'Top-p parameter for sampling',
-                    default: 0.95,
-                    minimum: 0.0,
-                    maximum: 1.0
-                  },
-                  topK: {
-                    type: 'number',
-                    description: 'Top-k parameter for sampling',
-                    default: 40,
-                    minimum: 1
-                  },
-                  save: {
-                    type: 'boolean',
-                    description: 'Whether to save the generated image to the filesystem',
-                    default: true
-                  }
-                },
-                required: ['prompt']
-              }
+              description: GENERATE_IMAGE_SCHEMA.description,
+              inputSchema: GENERATE_IMAGE_SCHEMA.inputSchema
             }
           }
         }
@@ -82,53 +43,7 @@ class GeminiImageServer {
 
     // Register tool list handler
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: [
-        {
-          name: 'generate_image',
-          description: 'Generate an image using Google Gemini',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              prompt: {
-                type: 'string',
-                description: 'Text description of the image to generate'
-              },
-              model: {
-                type: 'string',
-                enum: ['gemini-2.0-flash-preview-image-generation'],
-                description: 'Model to use',
-                default: 'gemini-2.0-flash-preview-image-generation'
-              },
-              temperature: {
-                type: 'number',
-                description: 'Temperature for generation (0.0 to 1.0)',
-                default: 1.0,
-                minimum: 0.0,
-                maximum: 1.0
-              },
-              topP: {
-                type: 'number',
-                description: 'Top-p parameter for sampling',
-                default: 0.95,
-                minimum: 0.0,
-                maximum: 1.0
-              },
-              topK: {
-                type: 'number',
-                description: 'Top-k parameter for sampling',
-                default: 40,
-                minimum: 1
-              },
-              save: {
-                type: 'boolean',
-                description: 'Whether to save the generated image to the filesystem',
-                default: true
-              }
-            },
-            required: ['prompt']
-          }
-        }
-      ]
+      tools: [GENERATE_IMAGE_SCHEMA]
     }));
 
     // Register tool call handler

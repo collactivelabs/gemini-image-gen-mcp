@@ -1,10 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
+import { body, validationResult } from 'express-validator';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { GeminiService } from './gemini-service.js';
 import fs from 'fs';
-import multer from 'multer';
 import { Logger } from './utils/logger.js';
 
 // Load environment variables
@@ -27,16 +28,38 @@ const geminiService = new GeminiService();
 
 // Set up Express app
 const app = express();
-const port = process.env.PORT || 3021;
+const port = process.env.PORT || 3070;
 
-// Configure multer for file uploads (if needed later)
-const upload = multer({ dest: 'uploads/' });
+// Configure CORS with environment variable support
+const corsOptions = {
+  origin: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : '*',
+  optionsSuccessStatus: 200
+};
+
+// Configure rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.RATE_LIMIT_MAX || 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Configure stricter rate limiting for generation endpoints
+const generationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.GENERATION_RATE_LIMIT || 20, // Limit to 20 generation requests
+  message: 'Too many generation requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Configure middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' })); // Limit request body size
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(join(__dirname, '..', 'public')));
+app.use(limiter); // Apply rate limiting to all routes
 
 // Serve generated images
 app.use('/generated-images', express.static(join(__dirname, '..', 'generated-images')));
@@ -45,22 +68,57 @@ app.use('/generated-images', express.static(join(__dirname, '..', 'generated-ima
 app.use('/generated-videos', express.static(join(__dirname, '..', 'generated-videos')));
 
 
+// Validation middleware
+const validateImageGeneration = [
+  body('prompt')
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 5000 })
+    .withMessage('Prompt must be between 1 and 5000 characters'),
+  body('temperature')
+    .optional()
+    .isFloat({ min: 0.0, max: 1.0 })
+    .withMessage('Temperature must be between 0.0 and 1.0'),
+  body('topP')
+    .optional()
+    .isFloat({ min: 0.0, max: 1.0 })
+    .withMessage('topP must be between 0.0 and 1.0'),
+  body('topK')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('topK must be between 1 and 100'),
+  body('model')
+    .optional()
+    .isString()
+    .trim(),
+  body('save')
+    .optional()
+    .isBoolean()
+    .withMessage('save must be a boolean')
+];
+
+// Validation error handler middleware
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      error: 'Validation failed',
+      details: errors.array()
+    });
+  }
+  next();
+};
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Gemini Image Generation MCP server is running' });
 });
 
 // Generate image endpoint
-app.post('/api/generate-image', async (req, res) => {
+app.post('/api/generate-image', generationLimiter, validateImageGeneration, handleValidationErrors, async (req, res) => {
   try {
     const { prompt, model, temperature, topP, topK, save } = req.body;
-
-    if (!prompt) {
-      return res.status(400).json({
-        success: false,
-        error: 'Prompt is required'
-      });
-    }
 
     logger.info(`Web interface: Generating image with prompt: "${prompt}"`);
 
@@ -101,17 +159,10 @@ app.post('/api/generate-image', async (req, res) => {
   }
 });
 
-// Generate vedio endpoint
-app.post('/api/generate-video', async (req, res) => {
+// Generate video endpoint
+app.post('/api/generate-video', generationLimiter, validateImageGeneration, handleValidationErrors, async (req, res) => {
   try {
     const { prompt, model, temperature, topP, topK, save } = req.body;
-
-    if (!prompt) {
-      return res.status(400).json({
-        success: false,
-        error: 'Prompt is required'
-      });
-    }
 
     logger.info(`Web interface: Generating video with prompt: "${prompt}"`);
 
@@ -152,17 +203,10 @@ app.post('/api/generate-video', async (req, res) => {
   }
 });
 
-// Generate vedio from image endpoint
-app.post('/api/generate-video-from-image', async (req, res) => {
+// Generate video from image endpoint
+app.post('/api/generate-video-from-image', generationLimiter, validateImageGeneration, handleValidationErrors, async (req, res) => {
   try {
     const { prompt, model, temperature, topP, topK, save } = req.body;
-
-    if (!prompt) {
-      return res.status(400).json({
-        success: false,
-        error: 'Prompt is required'
-      });
-    }
 
     logger.info(`Web interface: Generating video from image with prompt: "${prompt}"`);
 
@@ -207,6 +251,15 @@ app.post('/api/generate-video-from-image', async (req, res) => {
 app.get('/api/images', (req, res) => {
   try {
     const outputDir = geminiService.outputImageDir;
+
+    // Check if directory exists
+    if (!fs.existsSync(outputDir)) {
+      return res.json({
+        success: true,
+        images: []
+      });
+    }
+
     const files = fs.readdirSync(outputDir)
       .filter(file => file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg'))
       .map(file => `/generated-images/${file}`);
@@ -228,13 +281,22 @@ app.get('/api/images', (req, res) => {
 app.get('/api/videos', (req, res) => {
   try {
     const outputDir = geminiService.outputVideoDir;
+
+    // Check if directory exists
+    if (!fs.existsSync(outputDir)) {
+      return res.json({
+        success: true,
+        videos: []
+      });
+    }
+
     const files = fs.readdirSync(outputDir)
-      .filter(file => file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg'))
+      .filter(file => file.endsWith('.mp4') || file.endsWith('.mov') || file.endsWith('.avi'))
       .map(file => `/generated-videos/${file}`);
 
     res.json({
       success: true,
-      images: files
+      videos: files
     });
   } catch (error) {
     logger.error('Get Videos', `Error getting videos: ${error.message}`);
